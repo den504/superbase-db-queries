@@ -162,3 +162,14 @@ create table audit_logs (
 );
 create index idx_audit_logs_actor  on audit_logs(actor_user_id);
 create index idx_audit_logs_action on audit_logs(action);
+
+
+-- ---------- AMEND TABLE ----------
+alter table public.brand_profiles rename column brand_name to company_name;
+alter table public.brand_profiles rename column description to brand_intro;
+alter table public.brand_profiles rename column website_url to website;
+
+alter table public.brand_profiles add column industries text[];
+alter table public.brand_profiles add column location text;
+alter table public.brand_profiles add column target_creator_niches text[];
+

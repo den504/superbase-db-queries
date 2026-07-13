@@ -158,3 +158,7 @@ create policy portfolio_modify_own on portfolio_links
 -- bypasses RLS. Normal users may only READ audit entries that are their own.
 create policy audit_select_own on audit_logs
   for select using (actor_user_id = auth.uid());
+
+-- ---------- remove  duplicate RLS ------------ 
+drop policy if exists "Users can read own profile" on public.profiles;
+drop policy if exists "Users can read their own profile" on public.profiles; 
