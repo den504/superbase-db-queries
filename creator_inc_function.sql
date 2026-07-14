@@ -1,3 +1,5 @@
+-- updates profile when an email has recently authenicated
+
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -6,3 +8,11 @@ begin
   return new;
 end;
 $$ language plpgsql security definer;
+
+
+--once profile is updated , function updates time stamp
+
+create or replace function public.set_updated_at()
+returns trigger language plpgsql as $$
+begin new.updated_at = now(); return new; end;
+$$;
