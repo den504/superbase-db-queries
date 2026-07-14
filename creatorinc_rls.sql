@@ -162,3 +162,8 @@ create policy audit_select_own on audit_logs
 -- ---------- remove  duplicate RLS ------------ 
 drop policy if exists "Users can read own profile" on public.profiles;
 drop policy if exists "Users can read their own profile" on public.profiles; 
+
+
+- ---------- grant permission to update profile ------------  
+grant select, insert, update on public.creator_profiles to authenticated;
+grant select, insert, update on public.brand_profiles to authenticated;
