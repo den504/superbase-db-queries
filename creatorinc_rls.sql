@@ -167,3 +167,15 @@ drop policy if exists "Users can read their own profile" on public.profiles;
 - ---------- grant permission to update profile ------------  
 grant select, insert, update on public.creator_profiles to authenticated;
 grant select, insert, update on public.brand_profiles to authenticated;
+
+
+
+------------ rls for gigs -------------------
+
+alter table public.gigs enable row level security;
+
+create policy "Brands manage their own gigs"
+  on public.gigs
+  for all
+  using (auth.uid() = brand_id)
+  with check (auth.uid() = brand_id);

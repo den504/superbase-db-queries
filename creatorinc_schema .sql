@@ -164,6 +164,23 @@ create index idx_audit_logs_actor  on audit_logs(actor_user_id);
 create index idx_audit_logs_action on audit_logs(action);
 
 
+
+create table public.gigs (
+  id uuid primary key default gen_random_uuid(),
+  brand_id uuid not null references auth.users(id),
+  title text not null,
+  status text not null default 'open',
+  budget numeric not null,
+  brief text not null,
+  closes_at timestamptz not null,
+  requirements text[] not null default '{}',
+  deliverables text[] not null default '{}',
+  tags text[] not null default '{}',
+  interested_count integer not null default 0,
+  created_at timestamptz not null default now()
+);
+
+
 -- ---------- AMEND TABLE ----------
 alter table public.brand_profiles rename column brand_name to company_name;
 alter table public.brand_profiles rename column description to brand_intro;
