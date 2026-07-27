@@ -179,3 +179,8 @@ create policy "Brands manage their own gigs"
   for all
   using (auth.uid() = brand_id)
   with check (auth.uid() = brand_id);
+
+
+  -------grant table level access to auth -------
+
+  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.gigs TO authenticated;
