@@ -181,6 +181,17 @@ create table public.gigs (
 );
 
 
+-- create creator shorts ----------
+
+create table creator_shorts (
+    id uuid primary key default gen_random_uuid(),
+    user_id uuid not null references auth.users(id),
+    video_url text not null,
+    thumbnail_url text not null,
+    created_at timestamptz not null default now()
+);
+
+
 -- ---------- AMEND TABLE ----------
 alter table public.brand_profiles rename column brand_name to company_name;
 alter table public.brand_profiles rename column description to brand_intro;
