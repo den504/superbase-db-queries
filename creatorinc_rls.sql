@@ -184,3 +184,11 @@ create policy "Brands manage their own gigs"
   -------grant table level access to auth -------
 
   GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.gigs TO authenticated;
+
+
+  ----------rls for shorts ----------
+
+  alter table creator_shorts enable row level security;
+
+create policy "Creators manage own shorts" on creator_shorts
+    for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
