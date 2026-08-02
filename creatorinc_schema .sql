@@ -191,6 +191,8 @@ create table creator_shorts (
     created_at timestamptz not null default now()
 );
 
+---permission on select
+grant select, insert, update, delete on creator_shorts to authenticated;
 
 -- ---------- AMEND TABLE ----------
 alter table public.brand_profiles rename column brand_name to company_name;
