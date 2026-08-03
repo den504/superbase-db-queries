@@ -1,16 +1,13 @@
 -- =====================================================================
--- CreatorInc — Row Level Security (RLS) Policies
+-- CreatorInc — Row Level Security (RLS) policies
 -- =====================================================================
--- RLS decides WHICH ROWS each logged-in user can see or change.
--- auth.uid()  = the id of the user making the request (or null if not logged in)
--- auth.role() = 'authenticated' for logged-in users, 'anon' for anonymous
--- Pattern: every policy is "for <action> using/with check (<condition>)".
---   using      = which existing rows you may read / update / delete
---   with check = which rows you are allowed to write (insert / update)
--- =====================================================================
+-- RLS controls which rows authenticated users can read or change.
+-- auth.uid()  = the current user id, or null for anonymous requests.
+-- auth.role() = 'authenticated' for signed-in users, 'anon' otherwise.
+-- Pattern: every policy follows "for <action> using/with check (<condition>)".
 
--- Turn RLS ON for every table. Until a policy grants access,
--- the default after this is "deny everything" — which is what we want.
+-- ---------- 0. ENABLE RLS ON TABLES ----------
+-- By default, these tables deny access until an explicit policy allows it.
 alter table profiles                enable row level security;
 alter table creator_profiles        enable row level security;
 alter table brand_profiles          enable row level security;
@@ -22,174 +19,181 @@ alter table interests               enable row level security;
 alter table chat_channels           enable row level security;
 alter table photo_uploads           enable row level security;
 alter table audit_logs              enable row level security;
+alter table public.gigs            enable row level security;
+alter table creator_shorts        enable row level security;
 
--- ---------- PROFILES ----------
--- A user may read only their own base profile row (id = their user id).
+-- ---------- 1. PROFILE ACCESS ----------
+-- Users can only read or update their own base profile row.
 create policy profiles_select_own on profiles
   for select using (id = auth.uid());
--- A user may update only their own base profile row.
+
 create policy profiles_update_own on profiles
   for update using (id = auth.uid());
 
--- ---------- CREATOR PROFILES ----------
--- Anyone logged in can read creator profiles (brands need to discover creators).
+-- ---------- 2. CREATOR PROFILE ACCESS ----------
+-- Authenticated users may discover creator profiles, but creators can only
+-- modify their own profile record.
 create policy creator_read_all on creator_profiles
   for select using (auth.role() = 'authenticated');
--- A creator can insert/update/delete only the profile row that belongs to them.
-create policy creator_modify_own on creator_profiles
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- ---------- BRAND PROFILES ----------
--- Anyone logged in can read brand profiles (creators need to see who posted an opportunity).
+create policy creator_modify_own on creator_profiles
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- ---------- 3. BRAND PROFILE ACCESS ----------
+-- Authenticated users may discover brand profiles, but brands can only
+-- modify their own record.
 create policy brand_read_all on brand_profiles
   for select using (auth.role() = 'authenticated');
--- A brand can insert/update/delete only its own profile row.
-create policy brand_modify_own on brand_profiles
-  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
 
--- ---------- OPPORTUNITIES ----------
--- Read rule: anyone can see OPEN opportunities; a brand can ALSO see its own
--- non-open ones (e.g. DRAFT / CLOSED) because it owns them.
+create policy brand_modify_own on brand_profiles
+  for all
+  using (user_id = auth.uid())
+  with check (user_id = auth.uid());
+
+-- ---------- 4. OPPORTUNITY ACCESS ----------
+-- Open opportunities are visible to everyone, while brands can also manage
+-- their own draft, closed, and archived opportunities.
 create policy opp_read_open on opportunities
   for select using (
     status = 'OPEN'
     or brand_id in (select id from brand_profiles where user_id = auth.uid())
   );
--- Write rule: a brand can create/edit/delete only opportunities under its own brand.
+
 create policy opp_modify_own on opportunities
   for all using (
     brand_id in (select id from brand_profiles where user_id = auth.uid())
-  ) with check (
+  )
+  with check (
     brand_id in (select id from brand_profiles where user_id = auth.uid())
   );
 
--- ---------- INTERESTS ----------
--- A creator can apply (insert) only under their OWN creator profile —
--- stops anyone filing an application in someone else's name.
+-- ---------- 5. INTEREST ACCESS ----------
+-- Creators can only manage their own applications, while brands can only
+-- view and update applications tied to their own opportunities.
 create policy interest_creator_insert on interests
   for insert with check (
     creator_id in (select id from creator_profiles where user_id = auth.uid())
   );
--- A creator can view their own applications.
+
 create policy interest_creator_select on interests
   for select using (
     creator_id in (select id from creator_profiles where user_id = auth.uid())
   );
--- A brand can view interests, but only those on opportunities IT owns.
--- (Traces: my user -> my brand -> my opportunities -> interests on them.)
+
 create policy interest_brand_select on interests
   for select using (
     opportunity_id in (
-      select o.id from opportunities o
-      join brand_profiles b on b.id = o.brand_id
-      where b.user_id = auth.uid()
-    )
-  );
--- A brand can accept/decline (update) interests, but only on its own opportunities.
-create policy interest_brand_update on interests
-  for update using (
-    opportunity_id in (
-      select o.id from opportunities o
+      select o.id
+      from opportunities o
       join brand_profiles b on b.id = o.brand_id
       where b.user_id = auth.uid()
     )
   );
 
--- ---------- CHAT CHANNELS ----------
--- A channel's metadata is visible ONLY to the two parties in it:
--- the creator on the channel OR the brand on the channel. Nobody else.
+create policy interest_brand_update on interests
+  for update using (
+    opportunity_id in (
+      select o.id
+      from opportunities o
+      join brand_profiles b on b.id = o.brand_id
+      where b.user_id = auth.uid()
+    )
+  );
+
+-- ---------- 6. CHAT CHANNEL ACCESS ----------
+-- A channel is visible only to the creator and brand involved in it.
 create policy chat_visible_to_parties on chat_channels
   for select using (
     creator_id in (select id from creator_profiles where user_id = auth.uid())
     or brand_id in (select id from brand_profiles where user_id = auth.uid())
   );
 
--- ---------- PHOTO UPLOADS ----------
--- Anyone logged in can read upload metadata (needed to display photos).
+-- ---------- 7. PHOTO UPLOAD ACCESS ----------
+-- Authenticated users may read upload metadata, but only own their own rows.
 create policy photo_read_all on photo_uploads
   for select using (auth.role() = 'authenticated');
--- A user can add/change/remove only the upload records they own.
+
 create policy photo_modify_own on photo_uploads
-  for all using (owner_user_id = auth.uid())
+  for all
+  using (owner_user_id = auth.uid())
   with check (owner_user_id = auth.uid());
 
--- ---------- SOCIAL ACCOUNTS ----------
--- Readable by anyone logged in (discovery / brand search).
+-- ---------- 8. SOCIAL ACCOUNT AND SOCIAL STATS ACCESS ----------
+-- These are publicly discoverable to authenticated users, but only the owner
+-- may modify them.
 create policy social_read_all on creator_social_accounts
   for select using (auth.role() = 'authenticated');
--- Writable only by the creator who owns the social account.
+
 create policy social_modify_own on creator_social_accounts
   for all using (
     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  ) with check (
+  )
+  with check (
     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
   );
 
--- ---------- SOCIAL STATS ----------
--- Readable by anyone logged in (so brands can see follower/engagement history).
 create policy stats_read_all on creator_social_stats
   for select using (auth.role() = 'authenticated');
--- Writable only by the owning creator. Stats hang off a social account,
--- so we trace: my user -> my creator profile -> my social account -> its stats.
+
 create policy stats_modify_own on creator_social_stats
   for all using (
     social_account_id in (
-      select sa.id from creator_social_accounts sa
+      select sa.id
+      from creator_social_accounts sa
       join creator_profiles cp on cp.id = sa.creator_profile_id
       where cp.user_id = auth.uid()
     )
   );
 
--- ---------- PORTFOLIO LINKS ----------
--- Readable by anyone logged in (part of a public creator profile).
+-- ---------- 9. PORTFOLIO LINK ACCESS ----------
+-- Portfolio links are visible to authenticated users but editable only by the
+-- owning creator.
 create policy portfolio_read_all on portfolio_links
   for select using (auth.role() = 'authenticated');
--- Writable only by the creator who owns the portfolio.
+
 create policy portfolio_modify_own on portfolio_links
   for all using (
     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  ) with check (
+  )
+  with check (
     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
   );
 
--- ---------- AUDIT LOGS ----------
--- No insert/update/delete policy exists for normal users, so RLS DENIES those
--- by default. Audit rows are written by the server (service-role key), which
--- bypasses RLS. Normal users may only READ audit entries that are their own.
+-- ---------- 10. AUDIT LOG ACCESS ----------
+-- Normal users can read only their own audit entries; writes are intended for
+-- trusted server-side code.
 create policy audit_select_own on audit_logs
   for select using (actor_user_id = auth.uid());
 
--- ---------- remove  duplicate RLS ------------ 
-drop policy if exists "Users can read own profile" on public.profiles;
-drop policy if exists "Users can read their own profile" on public.profiles; 
-
-
-- ---------- grant permission to update profile ------------  
-grant select, insert, update on public.creator_profiles to authenticated;
-grant select, insert, update on public.brand_profiles to authenticated;
-
-
-
------------- rls for gigs -------------------
-
-alter table public.gigs enable row level security;
-
+-- ---------- 11. GIG ACCESS ----------
+-- Brands manage only their own gigs.
 create policy "Brands manage their own gigs"
   on public.gigs
   for all
   using (auth.uid() = brand_id)
   with check (auth.uid() = brand_id);
 
+-- ---------- 12. CREATOR SHORT ACCESS ----------
+-- Creators manage only their own shorts.
+create policy "Creators manage own shorts"
+  on creator_shorts
+  for all
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 
-  -------grant table level access to auth -------
+-- ---------- 13. CLEANUP AND GRANTS ----------
+-- Remove older duplicate policies if they exist.
+drop policy if exists "Users can read own profile" on public.profiles;
+drop policy if exists "Users can read their own profile" on public.profiles;
 
-  GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.gigs TO authenticated;
+-- Grant access for profile-related tables to authenticated users.
+grant select, insert, update on public.creator_profiles to authenticated;
+grant select, insert, update on public.brand_profiles to authenticated;
 
+-- Grant full access to gigs for authenticated users.
+grant select, insert, update, delete on table public.gigs to authenticated;
 
-  ----------rls for creator-shorts a table ----------
-
-  alter table creator_shorts enable row level security;
-
-  create policy "Creators manage own shorts" on creator_shorts
-      for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+grant select, insert, update, delete on creator_shorts to authenticated;
 
