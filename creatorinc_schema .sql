@@ -203,4 +203,3 @@ alter table public.brand_profiles rename column website_url to website;
 alter table public.brand_profiles add column industries text[];
 alter table public.brand_profiles add column location text;
 alter table public.brand_profiles add column target_creator_niches text[];
-
