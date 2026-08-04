@@ -197,3 +197,16 @@ grant select, insert, update, delete on table public.gigs to authenticated;
 
 grant select, insert, update, delete on creator_shorts to authenticated;
 
+----authenticated users can discover gigs -------
+create policy "Authenticated users can discover open gigs"
+on public.gigs
+for select
+to authenticated
+using (status = 'open');
+
+----authenicated users can discover brands ---------
+create policy "Authenticated users can discover brands"
+on public.brand_profiles
+for select
+to authenticated
+using (true);
