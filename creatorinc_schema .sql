@@ -203,3 +203,10 @@ alter table public.brand_profiles rename column website_url to website;
 alter table public.brand_profiles add column industries text[];
 alter table public.brand_profiles add column location text;
 alter table public.brand_profiles add column target_creator_niches text[];
+
+----Create RelationShip between gigs and brand_profile
+
+alter table public.gigs
+add constraint gigs_brand_profile_user_id_fkey
+foreign key (brand_id)
+references public.brand_profiles(user_id);
