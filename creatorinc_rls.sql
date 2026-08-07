@@ -234,3 +234,7 @@ create policy "Brands can read interests for their gigs"
 on public.gig_interests
 for select to authenticated
 using (exists (select 1 from public.gigs where id = gig_id and brand_id = auth.uid()));
+
+-- [Security → table privileges → creator interest operations]
+grant select, insert on table public.gig_interests
+to authenticated;
