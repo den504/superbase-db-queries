@@ -210,3 +210,31 @@ on public.brand_profiles
 for select
 to authenticated
 using (true);
+
+-- secure gig_interest with rls 
+alter table public.gig_interests enable row level security;
+
+
+
+--- confirms authenicated user has a creator profile
+
+create policy "Creators can indicate interest in open gigs"
+on public.gig_interests
+for insert to authenticated
+with check (creator_user_id = auth.uid() and exists (select 1 from public.creator_profiles where user_id = auth.uid()) and exists (select 1 from public.gigs where id = gig_id and status = 'open'));
+
+-- creators can check whether they already indicated interest
+create policy "Creators can read their own interests"
+on public.gig_interests
+for select to authenticated
+using (creator_user_id = auth.uid());
+
+-- brands can read interest for their gigs
+create policy "Brands can read interests for their gigs"
+on public.gig_interests
+for select to authenticated
+using (exists (select 1 from public.gigs where id = gig_id and brand_id = auth.uid()));
+
+-- [Security → table privileges → creator interest operations]
+grant select, insert on table public.gig_interests
+to authenticated;

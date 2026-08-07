@@ -210,3 +210,28 @@ alter table public.gigs
 add constraint gigs_brand_profile_user_id_fkey
 foreign key (brand_id)
 references public.brand_profiles(user_id);
+
+
+-- Create the gig_interest table and required columns:
+create table public.gig_interests (
+    id uuid primary key default gen_random_uuid(),
+    gig_id uuid not null, creator_user_id uuid not null,
+    created_at timestamptz not null default now());
+
+
+-- connect interest to gigs 
+alter table public.gig_interests
+add constraint gig_interests_gig_id_fkey
+foreign key (gig_id)
+references public.gigs(id) on delete cascade;
+
+-- connect interest to creator profile
+alter table public.gig_interests
+add constraint gig_interests_creator_user_id_fkey
+foreign key (creator_user_id)
+references public.creator_profiles(user_id) on delete cascade;
+
+--prevent duplicate interest
+alter table public.gig_interests
+add constraint gig_interests_gig_creator_unique
+unique (gig_id, creator_user_id);
