@@ -8,6 +8,9 @@
 -- ENUMS
 create type user_role as enum ('CREATOR', 'BRAND');
 
+alter type public.user_role rename value 'CREATOR' to 'creator';
+alter type public.user_role rename value 'BRAND' to 'brand';
+
 
 -- ---------- CORE USER AND PROFILE TABLES ----------
 -- One base profile row per Supabase auth user.
