@@ -5,6 +5,9 @@
 -- This file defines the core database objects for CreatorInc.
 -- Run it during initial setup before applying the RLS and trigger scripts.
 
+-- ENUMS
+create type user_role as enum ('CREATOR', 'BRAND');
+
 
 -- ---------- CORE USER AND PROFILE TABLES ----------
 -- One base profile row per Supabase auth user.
@@ -114,8 +117,7 @@ add constraint gig_interests_gig_creator_unique
 unique (gig_id, creator_user_id);
 
 -- NOT IN USE
--- ---------- 1. ENUMS ----------
--- create type user_role as enum ('CREATOR', 'BRAND');
+-- ENUM ---
 -- create type opportunity_status as enum ('DRAFT', 'OPEN', 'CLOSED', 'ARCHIVED');
 -- create type interest_status as enum ('PENDING', 'ACCEPTED', 'DECLINED');
 -- create type platform_type as enum ('INSTAGRAM', 'TIKTOK', 'YOUTUBE', 'X', 'FACEBOOK', 'TWITCH', 'OTHER');
