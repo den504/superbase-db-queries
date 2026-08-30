@@ -11,14 +11,6 @@
 alter table profiles                enable row level security;
 alter table creator_profiles        enable row level security;
 alter table brand_profiles          enable row level security;
-alter table portfolio_links         enable row level security;
-alter table creator_social_accounts enable row level security;
-alter table creator_social_stats    enable row level security;
-alter table opportunities           enable row level security;
-alter table interests               enable row level security;
-alter table chat_channels           enable row level security;
-alter table photo_uploads           enable row level security;
-alter table audit_logs              enable row level security;
 alter table public.gigs            enable row level security;
 alter table creator_shorts        enable row level security;
 
@@ -52,128 +44,6 @@ create policy brand_modify_own on brand_profiles
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
--- ---------- 4. OPPORTUNITY ACCESS ----------
--- Open opportunities are visible to everyone, while brands can also manage
--- their own draft, closed, and archived opportunities.
-create policy opp_read_open on opportunities
-  for select using (
-    status = 'OPEN'
-    or brand_id in (select id from brand_profiles where user_id = auth.uid())
-  );
-
-create policy opp_modify_own on opportunities
-  for all using (
-    brand_id in (select id from brand_profiles where user_id = auth.uid())
-  )
-  with check (
-    brand_id in (select id from brand_profiles where user_id = auth.uid())
-  );
-
--- ---------- 5. INTEREST ACCESS ----------
--- Creators can only manage their own applications, while brands can only
--- view and update applications tied to their own opportunities.
-create policy interest_creator_insert on interests
-  for insert with check (
-    creator_id in (select id from creator_profiles where user_id = auth.uid())
-  );
-
-create policy interest_creator_select on interests
-  for select using (
-    creator_id in (select id from creator_profiles where user_id = auth.uid())
-  );
-
-create policy interest_brand_select on interests
-  for select using (
-    opportunity_id in (
-      select o.id
-      from opportunities o
-      join brand_profiles b on b.id = o.brand_id
-      where b.user_id = auth.uid()
-    )
-  );
-
-create policy interest_brand_update on interests
-  for update using (
-    opportunity_id in (
-      select o.id
-      from opportunities o
-      join brand_profiles b on b.id = o.brand_id
-      where b.user_id = auth.uid()
-    )
-  );
-
--- ---------- 6. CHAT CHANNEL ACCESS ----------
--- A channel is visible only to the creator and brand involved in it.
-create policy chat_visible_to_parties on chat_channels
-  for select using (
-    creator_id in (select id from creator_profiles where user_id = auth.uid())
-    or brand_id in (select id from brand_profiles where user_id = auth.uid())
-  );
-
--- ---------- 7. PHOTO UPLOAD ACCESS ----------
--- Authenticated users may read upload metadata, but only own their own rows.
-create policy photo_read_all on photo_uploads
-  for select using (auth.role() = 'authenticated');
-
-create policy photo_modify_own on photo_uploads
-  for all
-  using (owner_user_id = auth.uid())
-  with check (owner_user_id = auth.uid());
-
--- ---------- 8. SOCIAL ACCOUNT AND SOCIAL STATS ACCESS ----------
--- These are publicly discoverable to authenticated users, but only the owner
--- may modify them.
-create policy social_read_all on creator_social_accounts
-  for select using (auth.role() = 'authenticated');
-
-create policy social_modify_own on creator_social_accounts
-  for all using (
-    creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  )
-  with check (
-    creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  );
-
-create policy stats_read_all on creator_social_stats
-  for select using (auth.role() = 'authenticated');
-
-create policy stats_modify_own on creator_social_stats
-  for all using (
-    social_account_id in (
-      select sa.id
-      from creator_social_accounts sa
-      join creator_profiles cp on cp.id = sa.creator_profile_id
-      where cp.user_id = auth.uid()
-    )
-  );
-
--- ---------- 9. PORTFOLIO LINK ACCESS ----------
--- Portfolio links are visible to authenticated users but editable only by the
--- owning creator.
-create policy portfolio_read_all on portfolio_links
-  for select using (auth.role() = 'authenticated');
-
-create policy portfolio_modify_own on portfolio_links
-  for all using (
-    creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  )
-  with check (
-    creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
-  );
-
--- ---------- 10. AUDIT LOG ACCESS ----------
--- Normal users can read only their own audit entries; writes are intended for
--- trusted server-side code.
-create policy audit_select_own on audit_logs
-  for select using (actor_user_id = auth.uid());
-
--- ---------- 11. GIG ACCESS ----------
--- Brands manage only their own gigs.
-create policy "Brands manage their own gigs"
-  on public.gigs
-  for all
-  using (auth.uid() = brand_id)
-  with check (auth.uid() = brand_id);
 
 -- ---------- 12. CREATOR SHORT ACCESS ----------
 -- Creators manage only their own shorts.
@@ -238,3 +108,140 @@ using (exists (select 1 from public.gigs where id = gig_id and brand_id = auth.u
 -- [Security → table privileges → creator interest operations]
 grant select, insert on table public.gig_interests
 to authenticated;
+
+
+--NOT IN USE
+-- alter table portfolio_links         enable row level security;
+-- alter table creator_social_accounts enable row level security;
+-- alter table creator_social_stats    enable row level security;
+-- alter table opportunities           enable row level security;
+-- alter table interests               enable row level security;
+-- alter table chat_channels           enable row level security;
+-- alter table photo_uploads           enable row level security;
+-- alter table audit_logs              enable row level security;
+
+
+
+-- ---------- 4. OPPORTUNITY ACCESS ----------
+-- Open opportunities are visible to everyone, while brands can also manage
+-- their own draft, closed, and archived opportunities.
+-- create policy opp_read_open on opportunities
+--   for select using (
+--     status = 'OPEN'
+--     or brand_id in (select id from brand_profiles where user_id = auth.uid())
+--   );
+
+-- create policy opp_modify_own on opportunities
+--   for all using (
+--     brand_id in (select id from brand_profiles where user_id = auth.uid())
+--   )
+--   with check (
+--     brand_id in (select id from brand_profiles where user_id = auth.uid())
+--   );
+
+
+-- ---------- 5. INTEREST ACCESS ----------
+-- Creators can only manage their own applications, while brands can only
+-- view and update applications tied to their own opportunities.
+-- create policy interest_creator_insert on interests
+--   for insert with check (
+--     creator_id in (select id from creator_profiles where user_id = auth.uid())
+--   );
+
+-- create policy interest_creator_select on interests
+--   for select using (
+--     creator_id in (select id from creator_profiles where user_id = auth.uid())
+--   );
+
+-- create policy interest_brand_select on interests
+--   for select using (
+--     opportunity_id in (
+--       select o.id
+--       from opportunities o
+--       join brand_profiles b on b.id = o.brand_id
+--       where b.user_id = auth.uid()
+--     )
+--   );
+
+-- create policy interest_brand_update on interests
+--   for update using (
+--     opportunity_id in (
+--       select o.id
+--       from opportunities o
+--       join brand_profiles b on b.id = o.brand_id
+--       where b.user_id = auth.uid()
+--     )
+--   );
+
+-- -- ---------- 6. CHAT CHANNEL ACCESS ----------
+-- -- A channel is visible only to the creator and brand involved in it.
+-- create policy chat_visible_to_parties on chat_channels
+--   for select using (
+--     creator_id in (select id from creator_profiles where user_id = auth.uid())
+--     or brand_id in (select id from brand_profiles where user_id = auth.uid())
+--   );
+
+-- -- ---------- 7. PHOTO UPLOAD ACCESS ----------
+-- -- Authenticated users may read upload metadata, but only own their own rows.
+-- create policy photo_read_all on photo_uploads
+--   for select using (auth.role() = 'authenticated');
+
+-- create policy photo_modify_own on photo_uploads
+--   for all
+--   using (owner_user_id = auth.uid())
+--   with check (owner_user_id = auth.uid());
+
+-- -- ---------- 8. SOCIAL ACCOUNT AND SOCIAL STATS ACCESS ----------
+-- -- These are publicly discoverable to authenticated users, but only the owner
+-- -- may modify them.
+-- create policy social_read_all on creator_social_accounts
+--   for select using (auth.role() = 'authenticated');
+
+-- create policy social_modify_own on creator_social_accounts
+--   for all using (
+--     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
+--   )
+--   with check (
+--     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
+--   );
+
+-- create policy stats_read_all on creator_social_stats
+--   for select using (auth.role() = 'authenticated');
+
+-- create policy stats_modify_own on creator_social_stats
+--   for all using (
+--     social_account_id in (
+--       select sa.id
+--       from creator_social_accounts sa
+--       join creator_profiles cp on cp.id = sa.creator_profile_id
+--       where cp.user_id = auth.uid()
+--     )
+--   );
+
+-- -- ---------- 9. PORTFOLIO LINK ACCESS ----------
+-- -- Portfolio links are visible to authenticated users but editable only by the
+-- -- owning creator.
+-- create policy portfolio_read_all on portfolio_links
+--   for select using (auth.role() = 'authenticated');
+
+-- create policy portfolio_modify_own on portfolio_links
+--   for all using (
+--     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
+--   )
+--   with check (
+--     creator_profile_id in (select id from creator_profiles where user_id = auth.uid())
+--   );
+
+-- -- ---------- 10. AUDIT LOG ACCESS ----------
+-- -- Normal users can read only their own audit entries; writes are intended for
+-- -- trusted server-side code.
+-- create policy audit_select_own on audit_logs
+--   for select using (actor_user_id = auth.uid());
+
+-- -- ---------- 11. GIG ACCESS ----------
+-- -- Brands manage only their own gigs.
+-- create policy "Brands manage their own gigs"
+--   on public.gigs
+--   for all
+--   using (auth.uid() = brand_id)
+--   with check (auth.uid() = brand_id);
