@@ -53,6 +53,13 @@ create policy "Creators manage own shorts"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Grants feed access to authenticated users for discovering shorts.
+create policy "Authenticated users can discover shorts"
+on public.creator_shorts
+for select to authenticated
+using (true);
+
+
 -- ---------- 13. CLEANUP AND GRANTS ----------
 -- Remove older duplicate policies if they exist.
 drop policy if exists "Users can read own profile" on public.profiles;
@@ -108,6 +115,14 @@ using (exists (select 1 from public.gigs where id = gig_id and brand_id = auth.u
 -- [Security → table privileges → creator interest operations]
 grant select, insert on table public.gig_interests
 to authenticated;
+
+-- -- ---------- 11. GIG ACCESS ----------
+-- Brands manage only their own gigs.
+create policy "Brands manage their own gigs"
+  on public.gigs
+  for all
+  using (auth.uid() = brand_id)
+  with check (auth.uid() = brand_id);
 
 
 --NOT IN USE
@@ -238,10 +253,4 @@ to authenticated;
 -- create policy audit_select_own on audit_logs
 --   for select using (actor_user_id = auth.uid());
 
--- -- ---------- 11. GIG ACCESS ----------
--- -- Brands manage only their own gigs.
--- create policy "Brands manage their own gigs"
---   on public.gigs
---   for all
---   using (auth.uid() = brand_id)
---   with check (auth.uid() = brand_id);
+
