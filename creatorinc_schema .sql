@@ -74,6 +74,21 @@ create table creator_shorts (
   created_at    timestamptz not null default now()
 );
 
+-- Finds orphaned shorts
+select s.id, s.user_id from public.creator_shorts s
+left join public.creator_profiles p on p.user_id = s.user_id
+where p.user_id is null;
+
+Links Shorts to Creator Profiles
+alter table public.creator_shorts
+add constraint creator_shorts_creator_profile_user_id_fkey
+foreign key (user_id)
+references public.creator_profiles(user_id) on delete cascade;
+
+-- Speeds newest-first sorting
+create index idx_creator_shorts_created_at
+on public.creator_shorts(created_at desc);
+
 -- ---------- 7. PERMISSIONS AND TABLE AMENDMENTS ----------
 grant select, insert, update, delete on creator_shorts to authenticated;
 alter table creator_shorts add column description text;
