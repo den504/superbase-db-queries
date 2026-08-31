@@ -53,6 +53,13 @@ create policy "Creators manage own shorts"
   using (auth.uid() = user_id)
   with check (auth.uid() = user_id);
 
+-- Grants feed access to authenticated users for discovering shorts.
+create policy "Authenticated users can discover shorts"
+on public.creator_shorts
+for select to authenticated
+using (true);
+
+
 -- ---------- 13. CLEANUP AND GRANTS ----------
 -- Remove older duplicate policies if they exist.
 drop policy if exists "Users can read own profile" on public.profiles;
