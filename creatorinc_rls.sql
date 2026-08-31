@@ -109,6 +109,14 @@ using (exists (select 1 from public.gigs where id = gig_id and brand_id = auth.u
 grant select, insert on table public.gig_interests
 to authenticated;
 
+-- -- ---------- 11. GIG ACCESS ----------
+-- Brands manage only their own gigs.
+create policy "Brands manage their own gigs"
+  on public.gigs
+  for all
+  using (auth.uid() = brand_id)
+  with check (auth.uid() = brand_id);
+
 
 --NOT IN USE
 -- alter table portfolio_links         enable row level security;
@@ -238,10 +246,4 @@ to authenticated;
 -- create policy audit_select_own on audit_logs
 --   for select using (actor_user_id = auth.uid());
 
--- -- ---------- 11. GIG ACCESS ----------
--- -- Brands manage only their own gigs.
--- create policy "Brands manage their own gigs"
---   on public.gigs
---   for all
---   using (auth.uid() = brand_id)
---   with check (auth.uid() = brand_id);
+
